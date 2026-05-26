@@ -57,12 +57,12 @@ jobs:
       - name: Validate deploy secrets
         env:
           SSH_HOST: ${{ secrets.SSH_HOST }}
-          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_USERNAME: ${{ secrets.SSH_USERNAME }}
           SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
         run: |
           set -euo pipefail
           if [ -z "$SSH_HOST" ]; then echo "::error::GitHub secret SSH_HOST is not set"; exit 1; fi
-          if [ -z "$SSH_USER" ]; then echo "::error::GitHub secret SSH_USER is not set"; exit 1; fi
+          if [ -z "$SSH_USERNAME" ]; then echo "::error::GitHub secret SSH_USERNAME is not set"; exit 1; fi
           if [ -z "$SSH_PRIVATE_KEY" ]; then echo "::error::GitHub secret SSH_PRIVATE_KEY is not set"; exit 1; fi
 
       - name: Setup SSH agent
@@ -84,24 +84,24 @@ jobs:
       - name: Copy build files to server via SSH (rsync)
         env:
           SSH_HOST: ${{ secrets.SSH_HOST }}
-          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_USERNAME: ${{ secrets.SSH_USERNAME }}
           SSH_PORT: ${{ secrets.SSH_PORT || '22' }}
         run: |
           set -euxo pipefail
           SSH_OPTS="-p ${SSH_PORT} -o StrictHostKeyChecking=accept-new -o ConnectTimeout=30"
 
-          ssh ${SSH_OPTS} "${SSH_USER}@${SSH_HOST}" "mkdir -p '${{ env.DEPLOY_PATH }}'"
+          ssh ${SSH_OPTS} "${SSH_USERNAME}@${SSH_HOST}" "mkdir -p '${{ env.DEPLOY_PATH }}'"
 
           rsync -avz --delete \
             -e "ssh ${SSH_OPTS}" \
             "${{ env.RELEASE_DIR }}/" \
-            "${SSH_USER}@${SSH_HOST}:${{ env.DEPLOY_PATH }}/"
+            "${SSH_USERNAME}@${SSH_HOST}:${{ env.DEPLOY_PATH }}/"
 
       - name: Restart application on server
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
+          username: ${{ secrets.SSH_USERNAME }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.SSH_PORT || 22 }}
           script: |
