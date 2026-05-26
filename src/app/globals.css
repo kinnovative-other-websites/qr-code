@@ -1,0 +1,126 @@
+@import url("https://api.fontshare.com/v2/css?f[]=clash-display@600,700,500&f[]=satoshi@400,500,700,900&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-display: "Clash Display";
+  --font-body: "Satoshi";
+
+  /* Light — warm paper canvas, ink text */
+  --canvas: 250 250 247;
+  --surface: 255 255 255;
+  --surface-2: 245 245 242;
+  --ink: 24 24 27;
+  --muted: 113 113 122;
+  --line: 228 228 225;
+
+  /* Brand — confident teal -> cyan, citrus accent */
+  --brand: 13 148 136; /* teal-600 */
+  --brand-soft: 153 246 228; /* teal-200 */
+  --brand-deep: 15 76 92; /* deep teal */
+  --accent: 14 165 233; /* cyan/sky */
+}
+
+.dark {
+  --canvas: 9 9 11;
+  --surface: 20 20 23;
+  --surface-2: 28 28 32;
+  --ink: 250 250 250;
+  --muted: 161 161 170;
+  --line: 39 39 42;
+
+  --brand: 45 212 191; /* teal-400 — brighter for dark bg */
+  --brand-soft: 19 78 74;
+  --brand-deep: 13 148 136;
+  --accent: 56 189 248;
+}
+
+* {
+  border-color: rgb(var(--line));
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: rgb(var(--canvas));
+  color: rgb(var(--ink));
+  font-family: var(--font-body), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+@layer base {
+  h1, h2, h3, h4 {
+    font-family: var(--font-display), system-ui, sans-serif;
+    letter-spacing: -0.02em;
+  }
+}
+
+@layer components {
+  /* Frosted glass surface used across cards and panels */
+  .glass {
+    @apply bg-surface/70 backdrop-blur-xl border border-line/70 shadow-glass;
+  }
+
+  .glass-strong {
+    background-color: rgb(var(--surface) / 0.85);
+    @apply backdrop-blur-2xl border border-line shadow-soft;
+  }
+
+  /* Brand text gradient */
+  .text-gradient {
+    @apply bg-brand-gradient bg-clip-text text-transparent;
+  }
+
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-2xl font-medium
+      transition-all duration-300 focus-visible:outline-none
+      focus-visible:ring-2 focus-visible:ring-brand/60 disabled:opacity-50
+      disabled:pointer-events-none select-none;
+  }
+  .btn-primary {
+    @apply btn bg-brand-gradient text-white shadow-glow hover:brightness-110
+      hover:-translate-y-0.5 active:translate-y-0 px-5 py-3;
+  }
+  .btn-ghost {
+    @apply btn bg-surface-2/60 text-ink border border-line hover:bg-surface-2
+      hover:-translate-y-0.5 px-4 py-2.5;
+  }
+  .btn-icon {
+    @apply btn h-10 w-10 bg-surface-2/60 border border-line hover:bg-surface-2
+      hover:scale-105 text-ink;
+  }
+
+  .field {
+    @apply w-full rounded-2xl bg-surface-2/60 border border-line px-4 py-3
+      text-ink placeholder:text-muted/70 outline-none transition-all duration-200
+      focus:border-brand/60 focus:ring-4 focus:ring-brand/15;
+  }
+
+  .chip {
+    @apply inline-flex items-center gap-1.5 rounded-full border border-line
+      bg-surface-2/60 px-3 py-1 text-xs font-medium text-muted;
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: rgb(var(--line));
+  border-radius: 9999px;
+  border: 2px solid rgb(var(--canvas));
+}
+::-webkit-scrollbar-thumb:hover { background: rgb(var(--muted) / 0.6); }
+
+/* Respect reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}
