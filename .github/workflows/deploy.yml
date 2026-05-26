@@ -77,24 +77,30 @@ jobs:
           chmod 700 "${HOME}/.ssh"
 
           # Single key file — avoids "Too many authentication failures" from ssh-agent defaults
-          printf '%s\n' "$SSH_PRIVATE_KEY" > "${HOME}/.ssh/deploy_key"
+          printf '%s\n' "$SSH_PRIVATE_KEY" | tr -d '\r' > "${HOME}/.ssh/deploy_key"
           chmod 600 "${HOME}/.ssh/deploy_key"
+
+          # Fail early with a clear message if the secret is not a valid private key
+          if ! ssh-keygen -y -f "${HOME}/.ssh/deploy_key" >/dev/null 2>&1; then
+            echo "::error::SSH_PRIVATE_KEY is invalid. Paste the full PEM (BEGIN/END lines, real line breaks)."
+            exit 1
+          fi
 
           touch "${HOME}/.ssh/known_hosts"
           ssh-keyscan -p "$SSH_PORT" -H "$SSH_HOST" >> "${HOME}/.ssh/known_hosts" 2>/dev/null || true
 
-          cat >> "${HOME}/.ssh/config" <<EOF
-          Host deploy-target
-            HostName ${SSH_HOST}
-            User ${SSH_USERNAME}
-            Port ${SSH_PORT}
-            IdentityFile ${HOME}/.ssh/deploy_key
-            IdentitiesOnly yes
-            PreferredAuthentications publickey
-            PasswordAuthentication no
-            StrictHostKeyChecking accept-new
-            ConnectTimeout 30
-          EOF
+          {
+            echo "Host deploy-target"
+            echo "  HostName ${SSH_HOST}"
+            echo "  User ${SSH_USERNAME}"
+            echo "  Port ${SSH_PORT}"
+            echo "  IdentityFile ${HOME}/.ssh/deploy_key"
+            echo "  IdentitiesOnly yes"
+            echo "  PreferredAuthentications publickey"
+            echo "  PasswordAuthentication no"
+            echo "  StrictHostKeyChecking accept-new"
+            echo "  ConnectTimeout 30"
+          } >> "${HOME}/.ssh/config"
           chmod 600 "${HOME}/.ssh/config"
 
       - name: Copy build files to server via SSH (rsync)
