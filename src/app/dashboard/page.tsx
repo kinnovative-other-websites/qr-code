@@ -27,10 +27,6 @@ export default function DashboardPage() {
 
       <div className="space-y-6">
         <AnalyticsDashboard />
-        <div className="grid gap-6 lg:grid-cols-2">
-          <BulkGenerator />
-          <TemplateGallery />
-        </div>
       </div>
     </div>
   );

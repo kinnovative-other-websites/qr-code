@@ -1,6 +1,9 @@
 import { Hero } from "@/components/Hero";
 import { QRGenerator } from "@/components/QRGenerator";
+import { div } from "framer-motion/m";
 import { Zap, Lock, Layers, Sparkles } from "lucide-react";
+import { BulkGenerator } from "@/components/BulkGenerator";
+import { TemplateGallery } from "@/components/TemplateGallery";
 
 const features = [
   {
@@ -28,25 +31,16 @@ const features = [
 export default function HomePage() {
   return (
     <>
-      <Hero />
       <QRGenerator />
+      
 
-      <section className="mx-auto max-w-6xl px-4 pb-8 sm:px-6">
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {features.map(({ icon: Icon, title, body }) => (
-            <div
-              key={title}
-              className="glass rounded-4xl p-6 transition-transform hover:-translate-y-1"
-            >
-              <span className="mb-4 grid h-11 w-11 place-items-center rounded-2xl bg-brand-gradient text-white shadow-glow">
-                <Icon size={20} />
-              </span>
-              <h3 className="font-display text-lg font-semibold">{title}</h3>
-              <p className="mt-1 text-sm text-muted">{body}</p>
-            </div>
-          ))}
-        </div>
-      </section>
+     <section className="mx-auto max-w-6xl px-4 pb-8 sm:px-6">
+        <div className="grid gap-6 lg:grid-cols-2">
+          <BulkGenerator />
+          <TemplateGallery />
+        </div>  
+      </section> 
+      
     </>
   );
 }
