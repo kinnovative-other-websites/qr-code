@@ -65,37 +65,43 @@ jobs:
           if [ -z "$SSH_USERNAME" ]; then echo "::error::GitHub secret SSH_USERNAME is not set"; exit 1; fi
           if [ -z "$SSH_PRIVATE_KEY" ]; then echo "::error::GitHub secret SSH_PRIVATE_KEY is not set"; exit 1; fi
 
-      - name: Setup SSH agent
-        uses: webfactory/ssh-agent@v0.9.0
-        with:
-          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
-
-      - name: Trust server host key
-        env:
-          SSH_HOST: ${{ secrets.SSH_HOST }}
-          SSH_PORT: ${{ secrets.SSH_PORT || '22' }}
-        run: |
-          set -euo pipefail
-          mkdir -p "${HOME}/.ssh"
-          chmod 700 "${HOME}/.ssh"
-          touch "${HOME}/.ssh/known_hosts"
-          ssh-keyscan -p "$SSH_PORT" -H "$SSH_HOST" >> "${HOME}/.ssh/known_hosts" || true
-
-      - name: Copy build files to server via SSH (rsync)
+      - name: Setup SSH key and config
         env:
           SSH_HOST: ${{ secrets.SSH_HOST }}
           SSH_USERNAME: ${{ secrets.SSH_USERNAME }}
           SSH_PORT: ${{ secrets.SSH_PORT || '22' }}
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          mkdir -p "${HOME}/.ssh"
+          chmod 700 "${HOME}/.ssh"
+
+          # Single key file — avoids "Too many authentication failures" from ssh-agent defaults
+          printf '%s\n' "$SSH_PRIVATE_KEY" > "${HOME}/.ssh/deploy_key"
+          chmod 600 "${HOME}/.ssh/deploy_key"
+
+          touch "${HOME}/.ssh/known_hosts"
+          ssh-keyscan -p "$SSH_PORT" -H "$SSH_HOST" >> "${HOME}/.ssh/known_hosts" 2>/dev/null || true
+
+          cat >> "${HOME}/.ssh/config" <<EOF
+          Host deploy-target
+            HostName ${SSH_HOST}
+            User ${SSH_USERNAME}
+            Port ${SSH_PORT}
+            IdentityFile ${HOME}/.ssh/deploy_key
+            IdentitiesOnly yes
+            PreferredAuthentications publickey
+            PasswordAuthentication no
+            StrictHostKeyChecking accept-new
+            ConnectTimeout 30
+          EOF
+          chmod 600 "${HOME}/.ssh/config"
+
+      - name: Copy build files to server via SSH (rsync)
         run: |
           set -euxo pipefail
-          SSH_OPTS="-p ${SSH_PORT} -o StrictHostKeyChecking=accept-new -o ConnectTimeout=30"
-
-          ssh ${SSH_OPTS} "${SSH_USERNAME}@${SSH_HOST}" "mkdir -p '${{ env.DEPLOY_PATH }}'"
-
-          rsync -avz --delete \
-            -e "ssh ${SSH_OPTS}" \
-            "${{ env.RELEASE_DIR }}/" \
-            "${SSH_USERNAME}@${SSH_HOST}:${{ env.DEPLOY_PATH }}/"
+          ssh deploy-target "mkdir -p '${{ env.DEPLOY_PATH }}'"
+          rsync -avz --delete -e ssh "${{ env.RELEASE_DIR }}/" "deploy-target:${{ env.DEPLOY_PATH }}/"
 
       - name: Restart application on server
         uses: appleboy/ssh-action@v1.0.3
