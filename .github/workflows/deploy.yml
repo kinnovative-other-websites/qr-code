@@ -54,25 +54,48 @@ jobs:
           du -sh "${{ env.RELEASE_DIR }}"
           find "${{ env.RELEASE_DIR }}" -maxdepth 3 -type d | head -30
 
-      - name: Copy build files to server via SSH (rsync)
+      - name: Validate deploy secrets
         env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "$SSH_HOST" ]; then echo "::error::GitHub secret SSH_HOST is not set"; exit 1; fi
+          if [ -z "$SSH_USER" ]; then echo "::error::GitHub secret SSH_USER is not set"; exit 1; fi
+          if [ -z "$SSH_PRIVATE_KEY" ]; then echo "::error::GitHub secret SSH_PRIVATE_KEY is not set"; exit 1; fi
+
+      - name: Setup SSH agent
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Trust server host key
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
           SSH_PORT: ${{ secrets.SSH_PORT || '22' }}
         run: |
-          mkdir -p ~/.ssh
-          chmod 700 ~/.ssh
-          printf '%s\n' "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
-          chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -p "${SSH_PORT}" -H "${{ secrets.SSH_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
-          chmod 644 ~/.ssh/known_hosts
+          set -euo pipefail
+          mkdir -p "${HOME}/.ssh"
+          chmod 700 "${HOME}/.ssh"
+          touch "${HOME}/.ssh/known_hosts"
+          ssh-keyscan -p "$SSH_PORT" -H "$SSH_HOST" >> "${HOME}/.ssh/known_hosts" || true
 
-          ssh -i ~/.ssh/deploy_key -p "${SSH_PORT}" -o StrictHostKeyChecking=yes \
-            "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" \
-            "mkdir -p '${{ env.DEPLOY_PATH }}'"
+      - name: Copy build files to server via SSH (rsync)
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_PORT: ${{ secrets.SSH_PORT || '22' }}
+        run: |
+          set -euxo pipefail
+          SSH_OPTS="-p ${SSH_PORT} -o StrictHostKeyChecking=accept-new -o ConnectTimeout=30"
+
+          ssh ${SSH_OPTS} "${SSH_USER}@${SSH_HOST}" "mkdir -p '${{ env.DEPLOY_PATH }}'"
 
           rsync -avz --delete \
-            -e "ssh -i ~/.ssh/deploy_key -p ${SSH_PORT} -o StrictHostKeyChecking=yes" \
+            -e "ssh ${SSH_OPTS}" \
             "${{ env.RELEASE_DIR }}/" \
-            "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ env.DEPLOY_PATH }}/"
+            "${SSH_USER}@${SSH_HOST}:${{ env.DEPLOY_PATH }}/"
 
       - name: Restart application on server
         uses: appleboy/ssh-action@v1.0.3
