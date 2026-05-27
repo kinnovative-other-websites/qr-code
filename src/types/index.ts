@@ -49,3 +49,15 @@ export interface BrandTemplate {
   description: string;
   options: Partial<QROptions>;
 }
+
+/** A shortened URL record with built-in analytics. */
+export interface ShortLink {
+  id: string;
+  code: string;
+  url: string;
+  title?: string;
+  createdAt: number;
+  expiresAt: number | null;
+  clicks: number;
+  lastAccessed: number | null;
+}

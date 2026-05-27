@@ -4,12 +4,13 @@ import { useRef, useState } from "react";
 import Papa from "papaparse";
 import { toast } from "sonner";
 import { UploadCloud, FileSpreadsheet, Package, Loader2, Download } from "lucide-react";
-import type { BulkRow } from "@/types";
+import type { BulkRow, EntityId } from "@/types";
 import { Card, SectionLabel } from "@/components/ui/Card";
 import { DEFAULT_OPTIONS } from "@/lib/qr";
+import { ENTITY_OPTIONS } from "@/lib/frames";
 import { downloadBatchZip } from "@/lib/download";
 import { validateUrl } from "@/lib/validation";
-import { truncate } from "@/lib/utils";
+import { truncate, cn } from "@/lib/utils";
 
 export function BulkGenerator() {
   const fileRef = useRef<HTMLInputElement>(null);
@@ -19,6 +20,7 @@ export function BulkGenerator() {
   );
   const [fg, setFg] = useState("#0f172a");
   const [bg, setBg] = useState("#ffffff");
+  const [entity, setEntity] = useState<EntityId>("none");
 
   function handleFile(file: File) {
     Papa.parse<string[]>(file, {
@@ -60,7 +62,14 @@ export function BulkGenerator() {
     try {
       await downloadBatchZip(
         valid.map((r) => ({ url: r.url, label: r.label })),
-        { ...DEFAULT_OPTIONS, fgColor: fg, bgColor: bg, logo: null },
+        {
+          ...DEFAULT_OPTIONS,
+          fgColor: fg,
+          bgColor: bg,
+          logo: null,
+          entity,
+          frameColor: null,
+        },
         (done, total) => setProgress({ done, total }),
       );
       setRows((prev) =>
@@ -108,6 +117,33 @@ export function BulkGenerator() {
         </button>
       ) : (
         <div className="space-y-4">
+          <div>
+            <SectionLabel>Entity frame</SectionLabel>
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="grid grid-cols-3 gap-2">
+                {ENTITY_OPTIONS.map((o) => (
+                  <button
+                    key={o.id}
+                    onClick={() => setEntity(o.id)}
+                    className={cn(
+                      "rounded-xl border px-3 py-2 text-sm font-medium transition-all",
+                      entity === o.id
+                        ? "border-brand bg-brand/10 text-ink"
+                        : "border-line bg-surface-2/50 text-muted hover:text-ink",
+                    )}
+                  >
+                    {o.name}
+                  </button>
+                ))}
+              </div>
+              <span className="text-xs text-muted">
+                {entity === "none"
+                  ? "Plain QR codes"
+                  : "Each code is wrapped in the selected school letterhead"}
+              </span>
+            </div>
+          </div>
+
           <div className="flex flex-wrap items-center gap-4">
             <ColorMini label="Foreground" value={fg} onChange={setFg} />
             <ColorMini label="Background" value={bg} onChange={setBg} />

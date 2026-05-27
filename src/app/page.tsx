@@ -1,7 +1,7 @@
-import { QRGenerator } from "@/components/QRGenerator";
-import { Zap, Lock, Layers, Sparkles } from "lucide-react";
 import { BulkGenerator } from "@/components/BulkGenerator";
 import { TemplateGallery } from "@/components/TemplateGallery";
+import { QRGenerator } from "@/components/QRGenerator";
+import { Zap, Lock, Layers, Sparkles } from "lucide-react";
 
 const features = [
   {
@@ -32,11 +32,20 @@ export default function HomePage() {
       <QRGenerator />
 
       <section className="mx-auto max-w-6xl px-4 pb-8 sm:px-6">
+        <div className="mb-5">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand">
+            Tools
+          </p>
+          <h2 className="font-display text-2xl font-semibold tracking-tight">
+            Bulk & templates
+          </h2>
+        </div>
         <div className="grid gap-6 lg:grid-cols-2">
           <BulkGenerator />
           <TemplateGallery />
         </div>
       </section>
+
     </>
   );
 }

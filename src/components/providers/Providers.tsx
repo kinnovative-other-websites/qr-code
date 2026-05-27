@@ -3,6 +3,7 @@
 import { ThemeProvider as NextThemeProvider } from "next-themes";
 import { Toaster } from "sonner";
 import type { ReactNode } from "react";
+import { LinksProvider } from "./LinksProvider";
 
 export function Providers({ children }: { children: ReactNode }) {
   return (
@@ -12,7 +13,7 @@ export function Providers({ children }: { children: ReactNode }) {
       enableSystem
       disableTransitionOnChange
     >
-      {children}
+      <LinksProvider>{children}</LinksProvider>
       <Toaster
         position="bottom-right"
         toastOptions={{

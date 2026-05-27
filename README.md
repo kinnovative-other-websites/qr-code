@@ -17,11 +17,23 @@ A premium, production-ready **QR Code Generator** built with **Next.js 14 (App R
 - Copy URL + native/web share (WhatsApp, Email, X, LinkedIn, Facebook, Telegram)
 - Recent history persisted in `localStorage`
 - Light / dark mode with system detection
+- **Sidebar navigation** (collapsible drawer on mobile) across three pages
 
-**Dashboard**
-- Generation analytics (7-day activity area chart + top-domains pie) via Recharts
-- **Bulk generation** from a CSV upload → downloads a ZIP of PNGs
+**URL Shortener** (`/shorten`)
+- Long-URL input with validation, **custom alias** and **expiry date** options
+- Unique short codes via **NanoID**, copy + open/test buttons
+- Instant QR code for every short link
+- Per-link analytics: **click count, created date, last accessed date**
+- **Search + filter** (all / active / expired) over full history
+- Persisted in `localStorage` via a **Context store**; live cross-tab updates
+
+**Dashboard** (`/dashboard`)
+- QR generation analytics (7-day activity + top-domains)
+- Short-link performance: totals, recent links, and **most-used** ranking
+- **Recently generated QR codes** with thumbnails
+- **Bulk generation** from a CSV upload → ZIP of codes (with entity frames)
 - Six **branded templates** with live previews
+- **Export history to CSV** (links and QR history)
 
 **Quality**
 - Modular component structure, fully typed
@@ -61,6 +73,8 @@ Each frame's accent color is overridable in the UI. The header artwork is stored
 | Notifications  | Sonner |
 | Theming        | next-themes |
 | Export         | jsPDF · JSZip · file-saver · PapaParse |
+| Short links    | NanoID (unique codes) |
+| State          | React Context (links) + hooks (QR) |
 | Fonts          | Clash Display + Satoshi (Fontshare) |
 
 ---
@@ -82,6 +96,14 @@ npm run start
 
 Requires **Node.js 18.17+**.
 
+### Environment variables
+
+The **core app needs none** — QR codes and short links work fully client-side. For the optional backend (cross-device short links, dynamic QR, real scan tracking), copy `.env.example` to `.env.local` and fill in your datastore credentials. See the URL Shortener and Dynamic QR sections below.
+
+```bash
+cp .env.example .env.local
+```
+
 ---
 
 ## 📁 Project Structure
@@ -89,29 +111,28 @@ Requires **Node.js 18.17+**.
 ```
 src/
 ├── app/
-│   ├── layout.tsx          # Root layout, SEO metadata, providers
-│   ├── page.tsx            # Hero + generator + features
-│   ├── globals.css         # Theme tokens & utility classes
-│   ├── icon.svg            # Favicon
-│   ├── sitemap.ts          # SEO sitemap
-│   ├── robots.ts           # SEO robots
-│   ├── dashboard/page.tsx  # Analytics + bulk + templates
-│   └── api/r/[id]/route.ts # Dynamic-QR redirect scaffold (optional backend)
+│   ├── layout.tsx          # Root layout, SEO metadata, providers, AppShell
+│   ├── page.tsx            # Hero + QR generator + features
+│   ├── shorten/page.tsx    # URL shortener page
+│   ├── s/[code]/page.tsx   # Short-link redirect + click tracking
+│   ├── dashboard/page.tsx  # QR + link analytics, recent items, bulk, templates
+│   ├── api/r/[id]/route.ts # Dynamic-QR redirect scaffold (optional backend)
+│   └── globals.css · icon.svg · sitemap.ts · robots.ts
 ├── components/
-│   ├── providers/Providers.tsx
+│   ├── providers/{Providers,LinksProvider}.tsx   # theme/toasts + Context store
 │   ├── ui/{Card,ThemeToggle}.tsx
-│   ├── Navbar · Hero · Footer
-│   ├── QRGenerator · QRPreview · CustomizationPanel · ResultActions
-│   ├── HistoryPanel
-│   └── BulkGenerator · AnalyticsDashboard · TemplateGallery
-├── hooks/useQRStudio.ts    # Central generator state
+│   ├── AppShell.tsx · Sidebar.tsx · Hero.tsx · Footer.tsx
+│   ├── QRGenerator · QRPreview · CustomizationPanel · EntityFramePicker
+│   ├── ResultActions · HistoryPanel
+│   ├── Shortener.tsx                              # shortener form + history
+│   ├── BulkGenerator · AnalyticsDashboard · TemplateGallery
+│   └── dashboard/{LinksPanel,RecentQRCodes}.tsx
+├── hooks/useQRStudio.ts
 ├── lib/
-│   ├── qr.ts               # Canvas/PNG/SVG rendering + logo compositing
-│   ├── validation.ts       # URL validation/normalization
-│   ├── download.ts         # PNG/SVG/PDF/ZIP exports
-│   ├── storage.ts          # localStorage history
-│   ├── share.ts            # share links + templates
-│   └── utils.ts
+│   ├── qr.ts · frames.ts · headerAssets.ts        # QR + entity frames
+│   ├── links.ts                                   # short-link store + analytics
+│   ├── csv.ts                                     # CSV export (links + QR)
+│   ├── validation.ts · download.ts · storage.ts · share.ts · utils.ts
 └── types/index.ts
 ```
 
@@ -128,6 +149,25 @@ example.org/pricing,Pricing
 ```
 
 The first column is the URL (protocol optional); the second is an optional filename label. A header row is auto-detected. Output is a ZIP of PNGs. A ready-made `public/sample-bulk.csv` is included.
+
+---
+
+## 🔗 URL Shortener & Click Tracking
+
+The `/shorten` page creates short links (`/s/<code>`) with optional custom aliases and expiry dates. Codes are generated with **NanoID** and stored, with their analytics, in a **React Context store** backed by `localStorage` (`src/components/providers/LinksProvider.tsx`).
+
+Visiting a short link hits `src/app/s/[code]/page.tsx`, which looks the code up, **records the click** (count + last-accessed), checks expiry, and redirects. Because storage is local, links resolve in the browser where they were created, and click counts update live across open tabs via the `storage` event.
+
+**For cross-device short links + real analytics**, add a tiny backend. Example with Supabase:
+
+```ts
+// resolve + count in an API route or src/app/s/[code]
+const { data } = await supabase.from("links").select("url").eq("code", code).single();
+await supabase.rpc("increment_click", { link_code: code });
+return Response.redirect(data.url, 302);
+```
+
+Wire the same store into `src/app/api/r/[id]/route.ts` for dynamic QR redirects, then surface server counts on the dashboard. See `.env.example` for the variables.
 
 ---
 
