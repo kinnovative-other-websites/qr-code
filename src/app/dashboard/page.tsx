@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import { AnalyticsDashboard } from "@/components/AnalyticsDashboard";
 import { LinksPanel } from "@/components/dashboard/LinksPanel";
 import { RecentQRCodes } from "@/components/dashboard/RecentQRCodes";
-
+import { BulkGenerator } from "@/components/BulkGenerator";
+import { TemplateGallery } from "@/components/TemplateGallery";
 
 export const metadata: Metadata = {
   title: "Dashboard",
@@ -63,7 +64,6 @@ export default function DashboardPage() {
         <Section eyebrow="Library" title="Recently generated">
           <RecentQRCodes />
         </Section>
-        
       </div>
     </div>
   );

@@ -74,6 +74,7 @@ Each frame's accent color is overridable in the UI. The header artwork is stored
 | Theming        | next-themes |
 | Export         | jsPDF · JSZip · file-saver · PapaParse |
 | Short links    | NanoID (unique codes) |
+| Database       | Supabase (Postgres) — optional, enables global links |
 | State          | React Context (links) + hooks (QR) |
 | Fonts          | Clash Display + Satoshi (Fontshare) |
 
@@ -152,22 +153,42 @@ The first column is the URL (protocol optional); the second is an optional filen
 
 ---
 
-## 🔗 URL Shortener & Click Tracking
+## 🔗 URL Shortener — Global Links with Supabase
 
-The `/shorten` page creates short links (`/s/<code>`) with optional custom aliases and expiry dates. Codes are generated with **NanoID** and stored, with their analytics, in a **React Context store** backed by `localStorage` (`src/components/providers/LinksProvider.tsx`).
+The `/shorten` page creates short links (`/s/<code>`) with optional **custom aliases** and **expiry dates**. Codes are generated with **NanoID**, and links are stored in **Supabase Postgres**, so they resolve from **any device, anywhere**.
 
-Visiting a short link hits `src/app/s/[code]/page.tsx`, which looks the code up, **records the click** (count + last-accessed), checks expiry, and redirects. Because storage is local, links resolve in the browser where they were created, and click counts update live across open tabs via the `storage` event.
+How resolution works: visiting `/s/<code>` hits a **server component** (`src/app/s/[code]/page.tsx`) that looks the code up in Supabase, **atomically records the click** (count + last-accessed via a `SECURITY DEFINER` function), checks expiry, and 302-redirects. Because it runs on the server, it works for anyone who opens or scans the link — not just the creator.
 
-**For cross-device short links + real analytics**, add a tiny backend. Example with Supabase:
+Without Supabase keys the app automatically runs in **local mode** (links stored in `localStorage`, resolved client-side on the same device), so it still works with zero setup.
 
-```ts
-// resolve + count in an API route or src/app/s/[code]
-const { data } = await supabase.from("links").select("url").eq("code", code).single();
-await supabase.rpc("increment_click", { link_code: code });
-return Response.redirect(data.url, 302);
-```
+### Supabase setup (5 minutes)
 
-Wire the same store into `src/app/api/r/[id]/route.ts` for dynamic QR redirects, then surface server counts on the dashboard. See `.env.example` for the variables.
+1. Create a free project at [supabase.com](https://supabase.com).
+2. Open **SQL Editor → New query**, paste the contents of [`supabase/schema.sql`](./supabase/schema.sql), and run it. This creates the `links` table, RLS policies, and the `increment_click()` counter.
+3. In **Project Settings → API**, copy the **Project URL** and the **anon public** key.
+4. Add them to `.env.local`:
+
+   ```bash
+   NEXT_PUBLIC_SUPABASE_URL=https://YOUR-PROJECT.supabase.co
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-public-key
+   NEXT_PUBLIC_SITE_URL=https://your-domain.com   # used as the short-link base
+   ```
+
+5. Restart `npm run dev`. The shortener header will switch from "Local mode" to **"Synced globally via Supabase."**
+
+### Data model
+
+| column | type | notes |
+| --- | --- | --- |
+| `code` | text (unique) | short code / custom alias |
+| `url` | text | destination |
+| `owner` | text | anonymous per-browser id; scopes *history* only |
+| `clicks` | int | incremented server-side on each visit |
+| `created_at` / `last_accessed` / `expires_at` | timestamptz | analytics + expiry |
+
+Links are **publicly resolvable by code** (required so they open anywhere); the per-browser `owner` id only scopes which links appear in *your* history list. The `anon` key is safe to expose (that's its purpose); clicks can't be tampered with because the only write path to `clicks` is the `SECURITY DEFINER` function. For multi-device history or private links, add Supabase Auth and switch the RLS policies to `auth.uid()`.
+
+> **Tip:** set `NEXT_PUBLIC_SITE_URL` to your deployed domain so the short links and their QR codes are scannable from other devices even while developing locally.
 
 ---
 
@@ -200,9 +221,10 @@ Zero-config on **Vercel**:
 
 1. Push this repo to GitHub.
 2. Import it at [vercel.com/new](https://vercel.com/new).
-3. Deploy — no environment variables needed for the core app.
+3. (Optional, for global short links) add the environment variables from `.env.example` under **Settings → Environment Variables**: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, and `NEXT_PUBLIC_SITE_URL`. Run `supabase/schema.sql` in your Supabase project first.
+4. Deploy. The core app works without any variables; adding the Supabase keys upgrades short links to global resolution + server-side click tracking.
 
-Also works on Netlify, Cloudflare Pages, or any Node host (`npm run build && npm run start`). Update the `SITE_URL` constant in `layout.tsx`, `sitemap.ts`, and `robots.ts` to your domain.
+Also works on Netlify, Cloudflare Pages, or any Node host (`npm run build && npm run start`). Set `NEXT_PUBLIC_SITE_URL` (and update the `SITE_URL` constant in `layout.tsx`, `sitemap.ts`, `robots.ts`) to your domain.
 
 ---
 

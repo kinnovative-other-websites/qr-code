@@ -16,6 +16,8 @@ import {
   Tag,
   Download,
   Loader2,
+  Cloud,
+  HardDrive,
 } from "lucide-react";
 import type { ShortLink } from "@/types";
 import { useLinks } from "@/components/providers/LinksProvider";
@@ -28,7 +30,7 @@ import { cn, timeAgo, truncate } from "@/lib/utils";
 type StatusFilter = "all" | "active" | "expired";
 
 export function Shortener() {
-  const { links, addLink, removeLink } = useLinks();
+  const { links, addLink, removeLink, remote } = useLinks();
   const [url, setUrl] = useState("");
   const [alias, setAlias] = useState("");
   const [expiry, setExpiry] = useState("");
@@ -41,13 +43,13 @@ export function Shortener() {
 
   const today = new Date().toISOString().split("T")[0];
 
-  function handleGenerate() {
+  async function handleGenerate() {
     if (busy) return;
     setBusy(true);
     const expiresAt = expiry
       ? new Date(`${expiry}T23:59:59`).getTime()
       : null;
-    const res = addLink({ url, alias: alias || undefined, expiresAt });
+    const res = await addLink({ url, alias: alias || undefined, expiresAt });
     if (!res.ok) {
       toast.error(res.error);
       setBusy(false);
@@ -57,8 +59,8 @@ export function Shortener() {
     setUrl("");
     setAlias("");
     setExpiry("");
-    toast.success("Short link created");
-    setTimeout(() => setBusy(false), 250);
+    toast.success(remote ? "Short link created & synced" : "Short link created");
+    setBusy(false);
   }
 
   // Live QR preview for the freshly created link.
@@ -125,6 +127,19 @@ export function Shortener() {
           Turn long URLs into tidy short links with optional custom aliases,
           expiry dates, click analytics, and an instant QR code.
         </p>
+        <span className="chip mt-3">
+          {remote ? (
+            <>
+              <Cloud size={13} className="text-brand" /> Synced globally via
+              Supabase — links open on any device
+            </>
+          ) : (
+            <>
+              <HardDrive size={13} className="text-brand" /> Local mode — add
+              Supabase keys to make links global (see README)
+            </>
+          )}
+        </span>
       </header>
 
       <div className="grid gap-5 lg:grid-cols-[1.3fr_1fr]">

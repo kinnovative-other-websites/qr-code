@@ -6,18 +6,22 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
 import type { ShortLink } from "@/types";
-import {
-  aliasTaken,
-  loadLinks,
-  makeCode,
-  saveLinks,
-} from "@/lib/links";
+import { aliasTaken, loadLinks, makeCode, saveLinks } from "@/lib/links";
 import { validateUrl } from "@/lib/validation";
 import { uid } from "@/lib/utils";
+import { supabaseEnabled } from "@/lib/supabase/client";
+import {
+  remoteClear,
+  remoteCreate,
+  remoteDelete,
+  remoteFetch,
+} from "@/lib/supabase/links";
+import { getOwnerId } from "@/lib/owner";
 
 interface AddInput {
   url: string;
@@ -30,87 +34,145 @@ type AddResult = { ok: true; link: ShortLink } | { ok: false; error: string };
 interface LinksContextValue {
   links: ShortLink[];
   ready: boolean;
-  addLink: (input: AddInput) => AddResult;
-  removeLink: (id: string) => void;
-  clearLinks: () => void;
+  /** true when links are stored in Supabase (resolvable from any device) */
+  remote: boolean;
+  addLink: (input: AddInput) => Promise<AddResult>;
+  removeLink: (id: string) => Promise<void>;
+  clearLinks: () => Promise<void>;
   refresh: () => void;
 }
 
 const LinksContext = createContext<LinksContextValue | null>(null);
+const ALIAS_RE = /^[a-zA-Z0-9_-]{3,32}$/;
 
 export function LinksProvider({ children }: { children: ReactNode }) {
   const [links, setLinks] = useState<ShortLink[]>([]);
   const [ready, setReady] = useState(false);
+  const owner = useRef("");
+
+  const refresh = useCallback(() => {
+    if (supabaseEnabled) {
+      remoteFetch(owner.current).then(setLinks).catch(() => {});
+    } else {
+      setLinks(loadLinks());
+    }
+  }, []);
 
   useEffect(() => {
-    setLinks(loadLinks());
-    setReady(true);
+    owner.current = getOwnerId();
 
-    // Keep state fresh when a click is recorded in the /s/[code] tab,
-    // or when returning to this tab.
-    const sync = () => setLinks(loadLinks());
-    window.addEventListener("storage", sync);
+    if (supabaseEnabled) {
+      remoteFetch(owner.current)
+        .then(setLinks)
+        .catch(() => {})
+        .finally(() => setReady(true));
+    } else {
+      setLinks(loadLinks());
+      setReady(true);
+    }
+
+    // Refresh counts when returning to the tab; in local mode also react to
+    // cross-tab storage writes from the /s/[code] redirect.
+    const sync = () => refresh();
     window.addEventListener("focus", sync);
+    if (!supabaseEnabled) window.addEventListener("storage", sync);
     return () => {
-      window.removeEventListener("storage", sync);
       window.removeEventListener("focus", sync);
+      window.removeEventListener("storage", sync);
     };
-  }, []);
+  }, [refresh]);
 
-  const persist = useCallback((next: ShortLink[]) => {
-    setLinks(next);
-    saveLinks(next);
-  }, []);
+  const validate = useCallback(
+    (input: AddInput) => {
+      const { valid, normalized, message } = validateUrl(input.url);
+      if (!valid) return { error: message ?? "Invalid URL" };
+      const alias = input.alias?.trim();
+      if (alias && !ALIAS_RE.test(alias)) {
+        return { error: "Alias must be 3–32 letters, numbers, - or _." };
+      }
+      return { normalized, alias };
+    },
+    [],
+  );
 
   const addLink = useCallback(
-    (input: AddInput): AddResult => {
-      const { valid, normalized, message } = validateUrl(input.url);
-      if (!valid) return { ok: false, error: message ?? "Invalid URL" };
+    async (input: AddInput): Promise<AddResult> => {
+      const v = validate(input);
+      if (v.error) return { ok: false, error: v.error };
+      const url = v.normalized as string;
+      const alias = v.alias;
 
+      if (supabaseEnabled) {
+        const res = await remoteCreate({
+          url,
+          alias,
+          expiresAt: input.expiresAt ?? null,
+          title: input.title,
+          owner: owner.current,
+        });
+        if (res.ok) setLinks((prev) => [res.link, ...prev]);
+        return res;
+      }
+
+      // Local fallback
       const current = loadLinks();
-      let code = input.alias?.trim();
+      let code = alias;
       if (code) {
-        if (!/^[a-zA-Z0-9_-]{3,32}$/.test(code)) {
-          return {
-            ok: false,
-            error: "Alias must be 3–32 letters, numbers, - or _.",
-          };
-        }
-        if (aliasTaken(code, current)) {
+        if (aliasTaken(code, current))
           return { ok: false, error: "That alias is already taken." };
-        }
       } else {
         do {
           code = makeCode();
         } while (aliasTaken(code, current));
       }
-
       const link: ShortLink = {
         id: uid(),
         code,
-        url: normalized,
+        url,
         title: input.title?.trim() || undefined,
         createdAt: Date.now(),
         expiresAt: input.expiresAt ?? null,
         clicks: 0,
         lastAccessed: null,
       };
-      persist([link, ...current]);
+      const next = [link, ...current];
+      setLinks(next);
+      saveLinks(next);
       return { ok: true, link };
     },
-    [persist],
+    [validate],
   );
 
-  const removeLink = useCallback(
-    (id: string) => persist(loadLinks().filter((l) => l.id !== id)),
-    [persist],
-  );
+  const removeLink = useCallback(async (id: string) => {
+    if (supabaseEnabled) {
+      await remoteDelete(id, owner.current);
+      setLinks((prev) => prev.filter((l) => l.id !== id));
+    } else {
+      const next = loadLinks().filter((l) => l.id !== id);
+      setLinks(next);
+      saveLinks(next);
+    }
+  }, []);
 
-  const clearLinks = useCallback(() => persist([]), [persist]);
-  const refresh = useCallback(() => setLinks(loadLinks()), []);
+  const clearLinks = useCallback(async () => {
+    if (supabaseEnabled) {
+      await remoteClear(owner.current);
+    } else {
+      saveLinks([]);
+    }
+    setLinks([]);
+  }, []);
 
   const value = useMemo(
-    () => ({ links, ready, addLink, removeLink, clearLinks, refresh }),
+    () => ({
+      links,
+      ready,
+      remote: supabaseEnabled,
+      addLink,
+      removeLink,
+      clearLinks,
+      refresh,
+    }),
     [links, ready, addLink, removeLink, clearLinks, refresh],
   );
 

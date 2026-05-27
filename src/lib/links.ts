@@ -59,9 +59,13 @@ export function recordClick(code: string): ShortLink | null {
   return links[idx];
 }
 
-/** Absolute short URL for display/copy (client-side only). */
+/** Absolute short URL for display/copy. Prefers the configured site URL so
+ *  links are shareable/scannable from any device (even when built locally). */
 export function buildShortUrl(code: string): string {
-  const origin =
-    typeof window !== "undefined" ? window.location.origin : "https://qrstudio.app";
-  return `${origin}/s/${code}`;
+  const base =
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    (typeof window !== "undefined"
+      ? window.location.origin
+      : "https://qrstudio.app");
+  return `${base.replace(/\/$/, "")}/s/${code}`;
 }
