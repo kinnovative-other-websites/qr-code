@@ -46,7 +46,7 @@ export function QRPreview({ result, loading }: Props) {
             <img
               src={result.png}
               alt={`QR code for ${result.url}`}
-              className="w-full max-w-[300px] rounded-3xl shadow-soft"
+              className="max-h-full max-w-full w-auto rounded-2xl shadow-soft"
             />
           </motion.div>
         ) : (

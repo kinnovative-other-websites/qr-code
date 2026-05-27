@@ -32,6 +32,21 @@ A premium, production-ready **QR Code Generator** built with **Next.js 14 (App R
 
 ---
 
+## 🏷️ Entity Frames (PGOS / DPS)
+
+Each QR can be wrapped in a branded **letterhead card** chosen from the customization panel (**None / PGOS / DPS**). The card shows the school header (crest + wordmark) on top, a brand-colored divider, the QR below, and a brand border. Frames are drawn into the rendered canvas and SVG — not as CSS overlays — so they're baked into every **PNG, SVG, and PDF** export.
+
+- **PGOS — Pallavi Group of Schools** — green border with bottom corner accents (default `#058041`).
+- **DPS — Delhi Public School** — green border with a double rule (default `#006f45`).
+
+Each frame's accent color is overridable in the UI. The header artwork is stored, base64-encoded, in `src/lib/headerAssets.ts`, and each entity's metadata (name, accent, border style, header, aspect ratio) lives in `FRAMES` in `src/lib/frames.ts`.
+
+**To swap a school logo:** replace the corresponding `HEADER_*` data URL in `src/lib/headerAssets.ts` with your own (a wide header banner works best — trim whitespace, key out the background if it isn't white, and keep the green linework on transparent), and update the matching `headerAspect` (= image width ÷ height). Reference copies of the processed headers are in `public/headers/`.
+
+**To add another entity:** extend `EntityId` in `src/types/index.ts`, add a config to `FRAMES` (`style: "brackets" | "double"`), and add its header to `headerAssets.ts`. All frame geometry is fractional, so it scales at any resolution.
+
+---
+
 ## 🧱 Tech Stack
 
 | Concern        | Choice |

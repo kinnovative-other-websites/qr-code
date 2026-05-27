@@ -1,5 +1,6 @@
 import QRCode from "qrcode";
 import type { QROptions, QRErrorLevel } from "@/types";
+import { drawFrame, wrapSvgWithFrame } from "./frames";
 
 export const DEFAULT_OPTIONS: QROptions = {
   size: 320,
@@ -10,6 +11,9 @@ export const DEFAULT_OPTIONS: QROptions = {
   logo: null,
   logoScale: 0.22,
   cornerRadius: 24,
+  entity: "none",
+  frameColor: null,
+  frameLabel: null,
 };
 
 /** When a logo covers the center we need maximum error correction. */
@@ -117,7 +121,8 @@ export async function renderToCanvas(
     ctx.restore();
   }
 
-  return canvas;
+  // Wrap in the selected entity frame (no-op when entity is "none").
+  return await drawFrame(canvas, options);
 }
 
 export async function toPngDataUrl(
@@ -144,23 +149,25 @@ export async function toSvgString(
     color: { dark: options.fgColor, light: options.bgColor },
   });
 
-  if (!options.logo) return svg;
+  if (options.logo) {
+    const match = svg.match(/viewBox="0 0 ([\d.]+) ([\d.]+)"/);
+    const vb = match ? parseFloat(match[1]) : options.size;
+    const logoSize = vb * options.logoScale;
+    const pad = logoSize * 0.16;
+    const plate = logoSize + pad * 2;
+    const x = (vb - plate) / 2;
+    const y = (vb - plate) / 2;
+    const lx = x + pad;
+    const ly = y + pad;
 
-  const match = svg.match(/viewBox="0 0 ([\d.]+) ([\d.]+)"/);
-  const vb = match ? parseFloat(match[1]) : options.size;
-  const logoSize = vb * options.logoScale;
-  const pad = logoSize * 0.16;
-  const plate = logoSize + pad * 2;
-  const x = (vb - plate) / 2;
-  const y = (vb - plate) / 2;
-  const lx = x + pad;
-  const ly = y + pad;
+    const overlay =
+      `<rect x="${x}" y="${y}" width="${plate}" height="${plate}" rx="${plate * 0.22}" fill="${options.bgColor}"/>` +
+      `<image x="${lx}" y="${ly}" width="${logoSize}" height="${logoSize}" ` +
+      `href="${options.logo}" preserveAspectRatio="xMidYMid slice"/>`;
 
-  const overlay =
-    `<rect x="${x}" y="${y}" width="${plate}" height="${plate}" rx="${plate * 0.22}" fill="${options.bgColor}"/>` +
-    `<image x="${lx}" y="${ly}" width="${logoSize}" height="${logoSize}" ` +
-    `href="${options.logo}" preserveAspectRatio="xMidYMid slice"/>`;
+    svg = svg.replace("</svg>", `${overlay}</svg>`);
+  }
 
-  svg = svg.replace("</svg>", `${overlay}</svg>`);
-  return svg;
+  // Wrap in the selected entity frame (no-op when entity is "none").
+  return wrapSvgWithFrame(svg, options.size, options);
 }

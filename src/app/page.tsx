@@ -1,6 +1,4 @@
-import { Hero } from "@/components/Hero";
 import { QRGenerator } from "@/components/QRGenerator";
-import { div } from "framer-motion/m";
 import { Zap, Lock, Layers, Sparkles } from "lucide-react";
 import { BulkGenerator } from "@/components/BulkGenerator";
 import { TemplateGallery } from "@/components/TemplateGallery";
@@ -32,15 +30,13 @@ export default function HomePage() {
   return (
     <>
       <QRGenerator />
-      
 
-     <section className="mx-auto max-w-6xl px-4 pb-8 sm:px-6">
+      <section className="mx-auto max-w-6xl px-4 pb-8 sm:px-6">
         <div className="grid gap-6 lg:grid-cols-2">
           <BulkGenerator />
           <TemplateGallery />
-        </div>  
-      </section> 
-      
+        </div>
+      </section>
     </>
   );
 }

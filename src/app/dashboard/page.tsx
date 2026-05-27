@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { AnalyticsDashboard } from "@/components/AnalyticsDashboard";
-import { BulkGenerator } from "@/components/BulkGenerator";
-import { TemplateGallery } from "@/components/TemplateGallery";
+
 
 export const metadata: Metadata = {
   title: "Dashboard",
@@ -27,6 +26,7 @@ export default function DashboardPage() {
 
       <div className="space-y-6">
         <AnalyticsDashboard />
+        
       </div>
     </div>
   );

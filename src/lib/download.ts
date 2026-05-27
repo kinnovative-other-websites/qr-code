@@ -34,8 +34,10 @@ export async function downloadPdf(text: string, options: QROptions) {
   const pdf = new jsPDF({ unit: "pt", format: "a4" });
   const pageW = pdf.internal.pageSize.getWidth();
   const pageH = pdf.internal.pageSize.getHeight();
-  const qrSize = 280;
-  const x = (pageW - qrSize) / 2;
+  const ratio = canvas.height / canvas.width;
+  const imgW = 280;
+  const imgH = imgW * ratio;
+  const x = (pageW - imgW) / 2;
   const y = 150;
 
   pdf.setFillColor(15, 23, 42);
@@ -46,7 +48,7 @@ export async function downloadPdf(text: string, options: QROptions) {
   pdf.setTextColor(120, 120, 130);
   pdf.text(text, pageW / 2, 116, { align: "center", maxWidth: pageW - 100 });
 
-  pdf.addImage(img, "PNG", x, y, qrSize, qrSize);
+  pdf.addImage(img, "PNG", x, y, imgW, imgH);
 
   pdf.setFontSize(9);
   pdf.setTextColor(160, 160, 170);

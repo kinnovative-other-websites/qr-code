@@ -6,6 +6,7 @@ import { ImagePlus, Trash2, Wand2 } from "lucide-react";
 import type { QROptions, QRErrorLevel } from "@/types";
 import { TEMPLATES } from "@/lib/share";
 import { SectionLabel } from "@/components/ui/Card";
+import { EntityFramePicker } from "@/components/EntityFramePicker";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -85,6 +86,9 @@ export function CustomizationPanel({ options, patch }: Props) {
 
   return (
     <div className="space-y-7">
+      {/* Entity frame */}
+      <EntityFramePicker options={options} patch={patch} />
+
       {/* Templates */}
       <div>
         <SectionLabel>Branded templates</SectionLabel>

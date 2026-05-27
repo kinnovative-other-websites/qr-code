@@ -1,5 +1,8 @@
 export type QRErrorLevel = "L" | "M" | "Q" | "H";
 
+/** Decorative entity frames drawn around the QR. */
+export type EntityId = "none" | "pgos" | "dps";
+
 /** All options that define how a QR code looks. */
 export interface QROptions {
   size: number;
@@ -13,6 +16,12 @@ export interface QROptions {
   logoScale: number;
   /** rounded corner radius (px) applied to PNG/preview background */
   cornerRadius: number;
+  /** which branded entity frame to draw around the code */
+  entity: EntityId;
+  /** override the entity's default accent color (null = use default) */
+  frameColor?: string | null;
+  /** override the entity's default frame label (null = use default) */
+  frameLabel?: string | null;
 }
 
 export interface HistoryItem {
