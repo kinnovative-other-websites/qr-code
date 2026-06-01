@@ -3,13 +3,14 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import { QrCode, Link2, LayoutDashboard, X } from "lucide-react";
+import { Award, QrCode, Link2, LayoutDashboard, X } from "lucide-react";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { cn } from "@/lib/utils";
 
 const NAV = [
   { href: "/", label: "QR Generator", icon: QrCode },
   { href: "/shorten", label: "Short Links", icon: Link2 },
+  { href: "/certificate-generator", label: "Certificates", icon: Award },
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
 ];
 

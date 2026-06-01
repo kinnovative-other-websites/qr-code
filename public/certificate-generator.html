@@ -1,0 +1,920 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Certificate Generator Studio</title>
+
+<!-- CDN libraries -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,900&family=Spline+Sans+Mono:wght@400;500;600&family=Spline+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+:root{
+  --ink:#1a1714;
+  --paper:#f4efe6;
+  --paper-2:#eae3d4;
+  --card:#fffdf8;
+  --gold:#b08431;
+  --gold-deep:#8a6420;
+  --accent:#7a2e2e;
+  --accent-soft:#a84848;
+  --line:#d8cdb8;
+  --line-strong:#bba883;
+  --muted:#7d7160;
+  --good:#3f6b3a;
+  --shadow:0 1px 2px rgba(40,30,15,.06),0 8px 28px rgba(40,30,15,.10);
+  --shadow-lg:0 30px 70px -28px rgba(40,30,15,.45);
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  font-family:'Spline Sans',sans-serif;
+  background:
+    radial-gradient(1200px 600px at 85% -10%, #fbf6ec 0%, transparent 60%),
+    radial-gradient(900px 500px at -10% 110%, #efe7d6 0%, transparent 55%),
+    var(--paper);
+  color:var(--ink);
+  -webkit-font-smoothing:antialiased;
+  line-height:1.5;
+}
+::selection{background:var(--gold);color:#fff}
+
+/* ---------- Header ---------- */
+header.app{
+  position:relative;
+  padding:34px 40px 26px;
+  border-bottom:1px solid var(--line);
+  background:linear-gradient(180deg,#fffdf8,rgba(255,253,248,0));
+  overflow:hidden;
+}
+header.app::before{
+  content:"";position:absolute;inset:0;pointer-events:none;
+  background-image:repeating-linear-gradient(135deg,rgba(176,132,49,.05) 0 2px,transparent 2px 9px);
+}
+.brand{display:flex;align-items:center;gap:16px;position:relative}
+.seal{
+  width:54px;height:54px;border-radius:50%;flex:none;
+  display:grid;place-items:center;
+  background:radial-gradient(circle at 35% 30%,#d8ad55,var(--gold-deep));
+  color:#fff8e6;font-family:'Fraunces',serif;font-weight:900;font-size:24px;
+  box-shadow:inset 0 0 0 3px rgba(255,255,255,.35), inset 0 0 0 5px var(--gold-deep), var(--shadow);
+  position:relative;
+}
+.seal::after{
+  content:"";position:absolute;inset:-7px;border-radius:50%;
+  border:1.5px dashed var(--gold);opacity:.5;
+}
+.brand h1{
+  font-family:'Fraunces',serif;font-weight:900;font-size:30px;letter-spacing:-.5px;
+  margin:0;line-height:1;
+}
+.brand .sub{
+  font-family:'Spline Sans Mono',monospace;font-size:11px;letter-spacing:3px;
+  text-transform:uppercase;color:var(--gold-deep);margin-top:6px;
+}
+.brand .tag{
+  margin-left:auto;font-size:12.5px;color:var(--muted);max-width:340px;text-align:right;
+  font-style:italic;
+}
+
+/* ---------- Layout ---------- */
+.shell{display:grid;grid-template-columns:330px 1fr;gap:0;min-height:calc(100vh - 130px)}
+.rail{
+  border-right:1px solid var(--line);
+  padding:24px 22px 60px;
+  background:linear-gradient(180deg,rgba(255,253,248,.6),rgba(255,253,248,.2));
+  overflow-y:auto;max-height:calc(100vh - 130px);
+}
+.stage{padding:28px 34px 80px;overflow-y:auto;max-height:calc(100vh - 130px)}
+
+/* ---------- Step blocks ---------- */
+.step{margin-bottom:22px}
+.step-h{display:flex;align-items:center;gap:10px;margin:0 0 12px}
+.step-n{
+  width:24px;height:24px;border-radius:6px;flex:none;display:grid;place-items:center;
+  background:var(--ink);color:var(--paper);font-family:'Spline Sans Mono',monospace;
+  font-size:12px;font-weight:600;
+}
+.step-h h3{margin:0;font-size:13px;letter-spacing:1.5px;text-transform:uppercase;color:var(--ink);font-weight:600}
+
+/* ---------- Controls ---------- */
+.btn{
+  font-family:'Spline Sans',sans-serif;font-size:13.5px;font-weight:600;
+  border:1px solid var(--line-strong);background:var(--card);color:var(--ink);
+  padding:10px 14px;border-radius:9px;cursor:pointer;width:100%;text-align:left;
+  display:flex;align-items:center;gap:9px;transition:.16s;box-shadow:0 1px 0 rgba(40,30,15,.04);
+}
+.btn:hover{border-color:var(--gold);background:#fff;transform:translateY(-1px);box-shadow:var(--shadow)}
+.btn:active{transform:translateY(0)}
+.btn .ic{font-family:'Spline Sans Mono',monospace;color:var(--gold-deep);font-size:15px;width:16px;text-align:center}
+.btn.dark{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.btn.dark:hover{background:#000;color:#fff}
+.btn.dark .ic{color:var(--gold)}
+.btn.accent{background:var(--accent);color:#fff;border-color:var(--accent)}
+.btn.accent:hover{background:var(--accent-soft)}
+.btn.accent .ic{color:#ffe1c9}
+.btn:disabled{opacity:.45;cursor:not-allowed;transform:none!important;box-shadow:none}
+.btn-row{display:flex;gap:8px}
+.btn-row .btn{text-align:center;justify-content:center}
+
+.drop{
+  border:1.5px dashed var(--line-strong);border-radius:11px;padding:18px 14px;text-align:center;
+  cursor:pointer;transition:.16s;background:rgba(255,253,248,.5);
+}
+.drop:hover,.drop.over{border-color:var(--gold);background:#fff}
+.drop .big{font-family:'Spline Sans Mono',monospace;font-size:20px;color:var(--gold-deep)}
+.drop .t{font-weight:600;font-size:13.5px;margin-top:4px}
+.drop .s{font-size:11.5px;color:var(--muted);margin-top:2px;font-family:'Spline Sans Mono',monospace;letter-spacing:1px}
+
+.hint{font-size:12px;color:var(--muted);margin:8px 2px 0;line-height:1.45}
+
+/* ---------- Properties panel ---------- */
+.props{
+  margin-top:10px;border:1px solid var(--line);border-radius:11px;background:var(--card);
+  padding:14px;display:none;
+}
+.props.show{display:block;animation:rise .25s ease}
+@keyframes rise{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.props .ptitle{font-family:'Spline Sans Mono',monospace;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--gold-deep);margin-bottom:10px;display:flex;justify-content:space-between;align-items:center}
+.field-tag{background:var(--paper-2);border-radius:5px;padding:2px 7px;font-size:11px;color:var(--ink)}
+.prow{display:flex;align-items:center;gap:8px;margin-bottom:9px}
+.prow label{font-size:11.5px;color:var(--muted);width:62px;flex:none}
+.prow select,.prow input[type=number],.prow input[type=text]{
+  flex:1;font-family:'Spline Sans',sans-serif;font-size:13px;padding:6px 8px;
+  border:1px solid var(--line);border-radius:7px;background:#fff;color:var(--ink);min-width:0;
+}
+.prow input[type=color]{width:34px;height:30px;padding:2px;border:1px solid var(--line);border-radius:7px;background:#fff;cursor:pointer}
+.seg{display:flex;border:1px solid var(--line);border-radius:7px;overflow:hidden;flex:1}
+.seg button{flex:1;border:none;background:#fff;padding:6px;cursor:pointer;font-size:13px;color:var(--muted);font-family:'Spline Sans Mono',monospace}
+.seg button.on{background:var(--ink);color:var(--paper)}
+.del-field{width:100%;margin-top:4px;border:1px solid #e3c9c9;background:#fbf1f1;color:var(--accent);font-size:12px;font-weight:600;padding:7px;border-radius:7px;cursor:pointer}
+.del-field:hover{background:#f6e4e4}
+
+/* ---------- Stage / canvas ---------- */
+.stage-head{display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap}
+.stage-head .lbl{font-family:'Fraunces',serif;font-size:20px;font-weight:600}
+.pill{font-family:'Spline Sans Mono',monospace;font-size:11px;letter-spacing:1px;color:var(--muted);border:1px solid var(--line);padding:4px 10px;border-radius:20px;background:var(--card)}
+.spacer{flex:1}
+
+.canvas-wrap{
+  position:relative;border-radius:14px;padding:22px;
+  background:
+    linear-gradient(var(--card),var(--card)) padding-box,
+    repeating-linear-gradient(45deg,var(--line) 0 1px,transparent 1px 11px);
+  border:1px solid var(--line);box-shadow:var(--shadow-lg);
+  display:inline-block;max-width:100%;
+}
+.canvas-frame{
+  position:relative;display:inline-block;
+  box-shadow:0 0 0 1px var(--line-strong), 0 18px 40px -18px rgba(40,30,15,.4);
+  background:#fff;
+}
+#cv{display:block;border-radius:2px}
+.empty-canvas{
+  width:min(760px,72vw);aspect-ratio:1.414/1;border-radius:10px;
+  border:2px dashed var(--line-strong);display:grid;place-items:center;text-align:center;
+  background:repeating-linear-gradient(45deg,#fff 0 14px,#fbf7ee 14px 28px);color:var(--muted);
+}
+.empty-canvas .e1{font-family:'Fraunces',serif;font-size:26px;color:var(--line-strong);margin-bottom:6px}
+.empty-canvas .e2{font-size:13px;max-width:320px;font-family:'Spline Sans Mono',monospace;letter-spacing:.5px}
+
+/* ---------- Excel preview ---------- */
+.tablewrap{margin-top:14px;border:1px solid var(--line);border-radius:11px;overflow:hidden;background:var(--card);max-height:330px;overflow-y:auto}
+table{border-collapse:collapse;width:100%;font-size:12.5px}
+th{position:sticky;top:0;background:var(--ink);color:var(--paper);text-align:left;padding:9px 12px;font-weight:600;font-family:'Spline Sans Mono',monospace;font-size:11px;letter-spacing:.5px;white-space:nowrap}
+td{padding:8px 12px;border-bottom:1px solid var(--line);white-space:nowrap}
+tr:last-child td{border-bottom:none}
+tr:nth-child(even) td{background:rgba(234,227,212,.35)}
+.rowsel{cursor:pointer}
+.rowsel:hover td{background:var(--paper-2)!important}
+.rowsel.active td{background:#fbecd2!important;box-shadow:inset 3px 0 0 var(--gold)}
+
+/* ---------- Mapping ---------- */
+.maprow{display:flex;align-items:center;gap:10px;margin-bottom:8px;font-size:13px}
+.maprow .col{flex:1;font-family:'Spline Sans Mono',monospace;background:var(--paper-2);padding:6px 9px;border-radius:6px;font-size:12px;overflow:hidden;text-overflow:ellipsis}
+.maprow .arrow{color:var(--gold-deep);font-family:'Spline Sans Mono',monospace}
+.maprow select{flex:1;font-size:12.5px;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--ink)}
+
+/* ---------- Progress / toast ---------- */
+.progress{margin-top:12px;display:none}
+.progress.show{display:block}
+.bar{height:9px;background:var(--paper-2);border-radius:20px;overflow:hidden;border:1px solid var(--line)}
+.bar > i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--gold),var(--gold-deep));transition:width .15s}
+.progress .ptxt{font-family:'Spline Sans Mono',monospace;font-size:11.5px;color:var(--muted);margin-top:6px}
+
+.toast{
+  position:fixed;bottom:26px;left:50%;transform:translate(-50%,30px);opacity:0;
+  background:var(--ink);color:var(--paper);padding:12px 20px;border-radius:11px;
+  font-size:13.5px;box-shadow:var(--shadow-lg);z-index:9000;transition:.3s;pointer-events:none;
+  border:1px solid rgba(255,255,255,.08);display:flex;align-items:center;gap:9px;max-width:80vw;
+}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+.toast .ic{color:var(--gold)}
+.toast.err{background:var(--accent)}
+.toast.err .ic{color:#ffd9c9}
+
+/* ---------- Modal ---------- */
+.modal-bg{position:fixed;inset:0;background:rgba(26,23,20,.5);backdrop-filter:blur(3px);z-index:8000;display:none;place-items:center;padding:20px}
+.modal-bg.show{display:grid;animation:fade .2s}
+@keyframes fade{from{opacity:0}to{opacity:1}}
+.modal{background:var(--card);border-radius:16px;padding:26px;width:min(420px,92vw);box-shadow:var(--shadow-lg);border:1px solid var(--line-strong);animation:rise .25s}
+.modal h4{font-family:'Fraunces',serif;font-size:21px;margin:0 0 6px}
+.modal p{font-size:13px;color:var(--muted);margin:0 0 16px}
+.modal input,.modal select{width:100%;font-family:'Spline Sans',sans-serif;font-size:15px;padding:11px 13px;border:1px solid var(--line-strong);border-radius:9px;background:#fff;color:var(--ink);margin-bottom:12px}
+.modal .quick{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px}
+.modal .quick span{font-size:11.5px;font-family:'Spline Sans Mono',monospace;background:var(--paper-2);padding:5px 9px;border-radius:6px;cursor:pointer;border:1px solid var(--line);transition:.14s}
+.modal .quick span:hover{background:var(--gold);color:#fff;border-color:var(--gold)}
+.modal .mbtns{display:flex;gap:10px}
+.modal .mbtns .btn{justify-content:center;text-align:center}
+
+.divider{height:1px;background:var(--line);margin:20px 0;border:none}
+.kbd{font-family:'Spline Sans Mono',monospace;background:var(--paper-2);border:1px solid var(--line);border-radius:5px;padding:1px 6px;font-size:11px}
+
+@media(max-width:920px){
+  .shell{grid-template-columns:1fr}
+  .rail{border-right:none;border-bottom:1px solid var(--line);max-height:none}
+  .stage{max-height:none}
+  .brand .tag{display:none}
+}
+</style>
+</head>
+<body>
+
+<header class="app">
+  <div class="brand">
+    <div class="seal">CG</div>
+    <div>
+      <h1>Certificate Generator Studio</h1>
+      <div class="sub">Design · Merge · Export — entirely in your browser</div>
+    </div>
+    <div class="tag">Place dynamic fields on any template, merge from a spreadsheet, and download a ZIP of finished certificates. No server, no sign-in.</div>
+  </div>
+</header>
+
+<div class="shell">
+
+  <!-- ============ LEFT RAIL ============ -->
+  <aside class="rail">
+
+    <div class="step">
+      <div class="step-h"><span class="step-n">1</span><h3>Upload Template</h3></div>
+      <div class="drop" id="tplDrop">
+        <div class="big">⊞</div>
+        <div class="t">Drop or click to upload</div>
+        <div class="s">PNG · JPG · JPEG</div>
+      </div>
+      <input type="file" id="tplInput" accept="image/png,image/jpeg" hidden>
+    </div>
+
+    <div class="step">
+      <div class="step-h"><span class="step-n">2</span><h3>Dynamic Fields</h3></div>
+      <button class="btn dark" id="addFieldBtn" disabled><span class="ic">+</span> Add Field</button>
+      <div class="hint">Add text, <span class="kbd">{{QRCode}}</span> or <span class="kbd">{{Photo}}</span> fields, then drag &amp; resize them on the template.</div>
+
+      <div class="props" id="propPanel">
+        <div class="ptitle"><span>Field Properties</span><span class="field-tag" id="propName">—</span></div>
+        <div id="textProps">
+          <div class="prow"><label>Font</label>
+            <select id="pFont">
+              <option>Fraunces</option><option>Spline Sans</option><option>Georgia</option>
+              <option>Times New Roman</option><option>Helvetica</option><option>Arial</option>
+              <option>Courier New</option><option>Garamond</option><option>Palatino</option>
+            </select>
+          </div>
+          <div class="prow"><label>Size</label><input type="number" id="pSize" min="6" max="300" value="36"><label style="width:auto">Color</label><input type="color" id="pColor" value="#1a1714"></div>
+          <div class="prow"><label>Style</label>
+            <div class="seg" id="pStyle">
+              <button data-s="bold" title="Bold"><b>B</b></button>
+              <button data-s="italic" title="Italic"><i>I</i></button>
+            </div>
+          </div>
+          <div class="prow"><label>Align</label>
+            <div class="seg" id="pAlign">
+              <button data-a="left">L</button><button data-a="center" class="on">C</button><button data-a="right">R</button>
+            </div>
+          </div>
+        </div>
+        <div id="sizeProps" style="display:none">
+          <div class="prow"><label>Width</label><input type="number" id="pBoxW" min="20" max="1000" value="120"><label style="width:auto">px</label></div>
+          <div class="hint">QR / image scales to this width.</div>
+        </div>
+        <button class="del-field" id="delField">✕ Delete field</button>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-h"><span class="step-n">3</span><h3>Recipient Data</h3></div>
+      <button class="btn" id="exportLayout"><span class="ic">↧</span> Export Excel Template</button>
+      <div class="hint"><b>Export Excel Template</b> downloads a blank Excel file with one column per field you've added — fill it in, then upload it below.</div>
+
+      <div class="drop" id="xlsxDrop" style="margin-top:12px">
+        <div class="big">▤</div>
+        <div class="t">Drop or click to upload</div>
+        <div class="s">XLSX · XLS · CSV</div>
+      </div>
+      <input type="file" id="xlsxInput" accept=".xlsx,.xls,.csv" hidden>
+
+      <div class="hint" style="margin-top:10px;display:flex;align-items:center;gap:8px">
+        <span style="opacity:.6">Reuse a saved design?</span>
+        <a href="#" id="layoutExportLink" style="color:var(--gold-deep);font-weight:600;text-decoration:none">Save JSON ↧</a>
+        <span style="opacity:.4">·</span>
+        <a href="#" id="layoutImportLink" style="color:var(--gold-deep);font-weight:600;text-decoration:none">Load JSON ↥</a>
+      </div>
+      <input type="file" id="importLayout" accept="application/json,.json" hidden>
+    </div>
+
+    <hr class="divider">
+
+    <div class="step">
+      <div class="step-h"><span class="step-n">4</span><h3>Generate</h3></div>
+      <button class="btn" id="previewBtn" disabled><span class="ic">◉</span> Preview Selected Row</button>
+      <div style="height:8px"></div>
+      <button class="btn dark" id="genBtn" disabled><span class="ic">⚙</span> Generate Certificates</button>
+      <div style="height:8px"></div>
+      <button class="btn accent" id="zipBtn" disabled><span class="ic">↧</span> Download ZIP</button>
+      <div class="progress" id="prog">
+        <div class="bar"><i id="progBar"></i></div>
+        <div class="ptxt" id="progTxt">Working…</div>
+      </div>
+    </div>
+
+  </aside>
+
+  <!-- ============ STAGE ============ -->
+  <main class="stage">
+
+    <div class="stage-head">
+      <span class="lbl">Certificate Designer</span>
+      <span class="pill" id="dimPill">no template</span>
+      <span class="pill" id="fieldPill">0 fields</span>
+      <div class="spacer"></div>
+      <span class="pill" id="previewPill">preview off</span>
+    </div>
+
+    <div class="canvas-wrap" id="canvasWrap">
+      <div class="empty-canvas" id="emptyCanvas">
+        <div>
+          <div class="e1">Your canvas awaits</div>
+          <div class="e2">Upload a template image to begin placing fields.</div>
+        </div>
+      </div>
+      <div class="canvas-frame" id="canvasFrame" style="display:none">
+        <canvas id="cv"></canvas>
+      </div>
+    </div>
+
+    <!-- Excel section -->
+    <div id="dataSection" style="display:none">
+      <hr class="divider">
+      <div class="stage-head">
+        <span class="lbl">Recipient Data</span>
+        <span class="pill" id="rowPill">0 rows</span>
+        <div class="spacer"></div>
+        <span class="pill">click a row to select for preview</span>
+      </div>
+
+      <div class="stage-head" style="margin-bottom:8px">
+        <span style="font-family:'Spline Sans Mono',monospace;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--gold-deep)">Field Mapping &nbsp;·&nbsp; Spreadsheet column → certificate field</span>
+      </div>
+      <div id="mapping" style="margin-bottom:16px"></div>
+
+      <div class="tablewrap" id="tableWrap"></div>
+    </div>
+
+  </main>
+</div>
+
+<!-- Add-field modal -->
+<div class="modal-bg" id="modalBg">
+  <div class="modal">
+    <h4 id="modalTitle">Add a Field</h4>
+    <p>Name the field exactly as you'd like it referenced. It appears on the certificate as <span class="kbd">{{name}}</span>.</p>
+    <input type="text" id="fieldNameInput" placeholder="e.g. Name, Rank, Date…" autocomplete="off">
+    <select id="fieldTypeInput">
+      <option value="text">Text field</option>
+      <option value="qr">QR Code (from column value)</option>
+      <option value="photo">Photo / Image (from URL in column)</option>
+    </select>
+    <div class="quick" id="quickChips"></div>
+    <div class="mbtns">
+      <button class="btn" id="modalCancel">Cancel</button>
+      <button class="btn dark" id="modalAdd"><span class="ic">+</span> Add Field</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"><span class="ic">●</span><span id="toastMsg"></span></div>
+
+<script>
+/* ============================================================
+   Certificate Generator Studio — all logic, fully client-side
+   ============================================================ */
+(function(){
+"use strict";
+
+/* ---------- State ---------- */
+let canvas = null;
+let tplImage = null;              // fabric.Image of template
+let baseW = 0, baseH = 0;         // natural template dimensions
+let displayScale = 1;             // canvas display scale vs natural
+let fields = [];                  // {id, name, type, obj}
+let excelCols = [];
+let excelRows = [];               // array of objects keyed by column
+let mapping = {};                 // fieldName -> excelColumn
+let generated = [];               // {name, dataURL}
+let previewRowIndex = 0;
+let previewOn = false;
+
+/* ---------- Helpers ---------- */
+const $ = id => document.getElementById(id);
+function toast(msg, isErr){
+  const t = $('toast'); $('toastMsg').textContent = msg;
+  t.classList.toggle('err', !!isErr); t.classList.add('show');
+  clearTimeout(t._t); t._t = setTimeout(()=>t.classList.remove('show'), 2600);
+}
+function safeName(s){ return String(s==null?'':s).replace(/[\\/:*?"<>|]+/g,'_').replace(/\s+/g,'_').slice(0,80) || 'certificate'; }
+
+/* ---------- Template upload ---------- */
+function setupDrop(dropEl, inputEl, handler){
+  dropEl.addEventListener('click', ()=>inputEl.click());
+  ['dragenter','dragover'].forEach(e=>dropEl.addEventListener(e, ev=>{ev.preventDefault();dropEl.classList.add('over');}));
+  ['dragleave','drop'].forEach(e=>dropEl.addEventListener(e, ev=>{ev.preventDefault();dropEl.classList.remove('over');}));
+  dropEl.addEventListener('drop', ev=>{ if(ev.dataTransfer.files.length) handler(ev.dataTransfer.files[0]); });
+  inputEl.addEventListener('change', ()=>{ if(inputEl.files.length) handler(inputEl.files[0]); inputEl.value=''; });
+}
+
+function loadTemplate(file){
+  if(!/image\/(png|jpe?g)/.test(file.type)){ toast('Please upload a PNG or JPG image', true); return; }
+  const reader = new FileReader();
+  reader.onload = e=>{
+    fabric.Image.fromURL(e.target.result, img=>{
+      baseW = img.width; baseH = img.height;
+      // display scale: fit into available width
+      const maxW = Math.min(900, (window.innerWidth - 420));
+      displayScale = Math.min(1, maxW / baseW);
+      initCanvas();
+      tplImage = img;
+      tplImage.set({selectable:false, evented:false, originX:'left', originY:'top', left:0, top:0});
+      tplImage.scaleX = displayScale; tplImage.scaleY = displayScale;
+      canvas.add(tplImage); canvas.sendToBack(tplImage);
+      // re-add field objects on top
+      fields.forEach(f=>canvas.add(f.obj));
+      canvas.requestRenderAll();
+      $('emptyCanvas').style.display='none';
+      $('canvasFrame').style.display='inline-block';
+      $('dimPill').textContent = baseW+' × '+baseH+' px';
+      $('addFieldBtn').disabled = false;
+      toast('Template loaded — add some fields');
+    });
+  };
+  reader.readAsDataURL(file);
+}
+
+function initCanvas(){
+  if(canvas){ canvas.dispose(); }
+  $('cv').width = Math.round(baseW*displayScale);
+  $('cv').height = Math.round(baseH*displayScale);
+  canvas = new fabric.Canvas('cv', { preserveObjectStacking:true, selection:true });
+  canvas.setWidth(Math.round(baseW*displayScale));
+  canvas.setHeight(Math.round(baseH*displayScale));
+  canvas.on('selection:created', onSelect);
+  canvas.on('selection:updated', onSelect);
+  canvas.on('selection:cleared', ()=>{ $('propPanel').classList.remove('show'); });
+  canvas.on('object:modified', updateFieldPill);
+}
+
+/* ---------- Fields ---------- */
+let pendingType='text';
+function openModal(){
+  $('fieldNameInput').value='';
+  $('fieldTypeInput').value='text';
+  $('modalBg').classList.add('show');
+  setTimeout(()=>$('fieldNameInput').focus(),50);
+}
+function closeModal(){ $('modalBg').classList.remove('show'); }
+
+function quickChip(name){
+  ['Name','ID','Class','Section','Sport','Rank','Date','Certificate Number'].forEach(n=>{});
+}
+function buildChips(){
+  const chips = ['Name','ID','Class','Section','Sport','Rank','Date','Certificate Number'];
+  const box = $('quickChips'); box.innerHTML='';
+  chips.forEach(c=>{
+    const s=document.createElement('span'); s.textContent=c;
+    s.onclick=()=>{ $('fieldNameInput').value=c; };
+    box.appendChild(s);
+  });
+}
+
+function addField(name, type){
+  name = (name||'').trim();
+  if(!name){ toast('Please enter a field name', true); return; }
+  if(fields.some(f=>f.name.toLowerCase()===name.toLowerCase())){ toast('A field with that name already exists', true); return; }
+  if(!canvas){ toast('Upload a template first', true); return; }
+
+  const id = 'f'+Date.now()+Math.floor(Math.random()*1000);
+  const cx = canvas.getWidth()/2, cy = canvas.getHeight()/2;
+  let obj;
+
+  if(type==='text'){
+    obj = new fabric.IText('{{'+name+'}}', {
+      left:cx, top:cy, originX:'center', originY:'center',
+      fontFamily:'Fraunces', fontSize:Math.round(36*displayScale)||24,
+      fill:'#1a1714', textAlign:'center', editable:false,
+      fontSize: Math.max(12, Math.round(36*displayScale)),
+    });
+    obj._cgMeta = { fontSizeBase:36 };
+  } else if(type==='qr'){
+    obj = makePlaceholderRect(name, '◫ QR', '#2b2b2b');
+  } else {
+    obj = makePlaceholderRect(name, '⊡ Photo', '#3a4a6b');
+  }
+  obj._cgId = id; obj._cgType = type; obj._cgName = name;
+  canvas.add(obj); canvas.setActiveObject(obj); canvas.requestRenderAll();
+  fields.push({ id, name, type, obj });
+  updateFieldPill();
+  refreshMapping();
+  toast('Field "'+name+'" added');
+}
+
+function makePlaceholderRect(name, label, color){
+  const w = Math.max(60, Math.round(120*displayScale));
+  const rect = new fabric.Rect({ width:w, height:w, fill:'rgba(176,132,49,.10)', stroke:color, strokeDashArray:[5,4], strokeWidth:2, originX:'center', originY:'center', rx:6, ry:6 });
+  const txt = new fabric.Text(label, { fontFamily:'Spline Sans Mono', fontSize:Math.max(10,Math.round(13*displayScale)), fill:color, originX:'center', originY:'center' });
+  const grp = new fabric.Group([rect,txt], { left:canvas.getWidth()/2, top:canvas.getHeight()/2, originX:'center', originY:'center' });
+  grp.lockUniScaling = false;
+  return grp;
+}
+
+function onSelect(){
+  const o = canvas.getActiveObject(); if(!o || !o._cgId) { $('propPanel').classList.remove('show'); return; }
+  const f = fields.find(f=>f.id===o._cgId); if(!f) return;
+  $('propPanel').classList.add('show');
+  $('propName').textContent = '{{'+f.name+'}}';
+  if(f.type==='text'){
+    $('textProps').style.display='block'; $('sizeProps').style.display='none';
+    $('pFont').value = o.fontFamily || 'Fraunces';
+    $('pSize').value = Math.round((o.fontSize/displayScale));
+    $('pColor').value = rgbToHex(o.fill);
+    setSeg('pStyle','bold', o.fontWeight==='bold');
+    setSeg('pStyle','italic', o.fontStyle==='italic');
+    ['left','center','right'].forEach(a=>setSeg('pAlign',a, (o.textAlign||'center')===a, 'data-a'));
+  } else {
+    $('textProps').style.display='none'; $('sizeProps').style.display='block';
+    $('pBoxW').value = Math.round((o.width*o.scaleX)/displayScale);
+  }
+}
+function setSeg(panel,val,on,attr){
+  attr = attr || 'data-s';
+  $(panel).querySelectorAll('button').forEach(b=>{
+    if(b.getAttribute(attr.replace('data-',''))===val || b.getAttribute(attr)===val){}
+  });
+  // simpler: toggle by matching dataset
+  $(panel).querySelectorAll('button').forEach(b=>{
+    const v = attr==='data-a'? b.dataset.a : b.dataset.s;
+    if(v===val) b.classList.toggle('on', !!on);
+  });
+}
+function rgbToHex(c){
+  if(!c) return '#000000';
+  if(c[0]==='#') return c;
+  const m = c.match(/\d+/g); if(!m) return '#000000';
+  return '#'+m.slice(0,3).map(x=>(+x).toString(16).padStart(2,'0')).join('');
+}
+
+/* property bindings */
+$('pFont').addEventListener('change',()=>{ const o=canvas.getActiveObject(); if(o&&o.type==='i-text'){o.set('fontFamily',$('pFont').value);canvas.requestRenderAll();}});
+$('pSize').addEventListener('input',()=>{ const o=canvas.getActiveObject(); if(o&&o.type==='i-text'){o.set('fontSize',Math.max(6,(+$('pSize').value)*displayScale)); o._cgMeta={fontSizeBase:+$('pSize').value}; canvas.requestRenderAll();}});
+$('pColor').addEventListener('input',()=>{ const o=canvas.getActiveObject(); if(o&&o.type==='i-text'){o.set('fill',$('pColor').value);canvas.requestRenderAll();}});
+$('pStyle').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b)return; const o=canvas.getActiveObject(); if(!(o&&o.type==='i-text'))return; const s=b.dataset.s; if(s==='bold'){const on=o.fontWeight!=='bold';o.set('fontWeight',on?'bold':'normal');b.classList.toggle('on',on);} else {const on=o.fontStyle!=='italic';o.set('fontStyle',on?'italic':'normal');b.classList.toggle('on',on);} canvas.requestRenderAll();});
+$('pAlign').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b)return; const o=canvas.getActiveObject(); if(!(o&&o.type==='i-text'))return; o.set('textAlign',b.dataset.a); $('pAlign').querySelectorAll('button').forEach(x=>x.classList.remove('on')); b.classList.add('on'); canvas.requestRenderAll();});
+$('pBoxW').addEventListener('input',()=>{ const o=canvas.getActiveObject(); if(o&&o.type==='group'){const target=(+$('pBoxW').value)*displayScale; o.scaleX=o.scaleY=target/o.width; canvas.requestRenderAll();}});
+$('delField').addEventListener('click',()=>{
+  const o=canvas.getActiveObject(); if(!o||!o._cgId)return;
+  fields = fields.filter(f=>f.id!==o._cgId);
+  canvas.remove(o); canvas.discardActiveObject(); canvas.requestRenderAll();
+  $('propPanel').classList.remove('show'); updateFieldPill(); refreshMapping();
+});
+
+function updateFieldPill(){ $('fieldPill').textContent = fields.length+' field'+(fields.length===1?'':'s'); }
+
+/* keyboard delete */
+document.addEventListener('keydown',e=>{
+  if((e.key==='Delete'||e.key==='Backspace') && canvas){
+    const o=canvas.getActiveObject();
+    if(o&&o._cgId && document.activeElement.tagName!=='INPUT' && document.activeElement.tagName!=='SELECT'){
+      $('delField').click(); e.preventDefault();
+    }
+  }
+});
+
+/* ---------- Excel template export (columns = added fields) ---------- */
+function exportExcelTemplate(){
+  if(!fields.length){ toast('Add fields first, then export a template', true); return; }
+  // One column per field. Photo/QR columns get a hint header note via a sample row.
+  const headers = fields.map(f=>f.name);
+  const sample = {};
+  fields.forEach(f=>{
+    if(f.type==='qr') sample[f.name]='value to encode in QR';
+    else if(f.type==='photo') sample[f.name]='https://example.com/photo.jpg';
+    else sample[f.name]='';
+  });
+  const ws = XLSX.utils.json_to_sheet([sample], {header:headers});
+  // widen columns a bit for readability
+  ws['!cols'] = headers.map(h=>({wch:Math.max(14, h.length+4)}));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Recipients');
+  XLSX.writeFile(wb, 'certificate-data-template.xlsx');
+  toast('Template exported — '+headers.length+' column'+(headers.length===1?'':'s'));
+}
+
+/* ---------- Layout export / import ---------- */
+function exportLayout(){
+  if(!fields.length){ toast('No fields to export', true); return; }
+  const data = {
+    version:1, template:{w:baseW,h:baseH},
+    fields: fields.map(f=>{
+      const o=f.obj; const c=o.getCenterPoint();
+      const base = { field:f.name, type:f.type, x:+(c.x/displayScale).toFixed(2), y:+(c.y/displayScale).toFixed(2), angle:o.angle||0 };
+      if(f.type==='text'){
+        Object.assign(base,{
+          fontSize:o._cgMeta?o._cgMeta.fontSizeBase:Math.round(o.fontSize/displayScale),
+          fontFamily:o.fontFamily, fontColor:rgbToHex(o.fill),
+          align:o.textAlign, bold:o.fontWeight==='bold', italic:o.fontStyle==='italic'
+        });
+      } else {
+        base.boxWidth = +((o.width*o.scaleX)/displayScale).toFixed(2);
+      }
+      return base;
+    })
+  };
+  const blob = new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  saveAs(blob,'certificate-layout.json');
+  toast('Layout exported');
+}
+
+function importLayout(file){
+  const r=new FileReader();
+  r.onload=e=>{
+    let data; try{ data=JSON.parse(e.target.result);}catch(err){ toast('Invalid JSON file',true); return; }
+    if(!data.fields){ toast('No fields found in file',true); return; }
+    if(!canvas){ toast('Upload a template before importing a layout',true); return; }
+    // clear existing fields
+    fields.forEach(f=>canvas.remove(f.obj)); fields=[];
+    data.fields.forEach(fd=>{
+      const id='f'+Date.now()+Math.floor(Math.random()*100000);
+      let obj;
+      const x=fd.x*displayScale, y=fd.y*displayScale;
+      if(fd.type==='text'||!fd.type){
+        obj=new fabric.IText('{{'+fd.field+'}}',{
+          left:x,top:y,originX:'center',originY:'center',
+          fontFamily:fd.fontFamily||'Fraunces',
+          fontSize:Math.max(6,(fd.fontSize||36)*displayScale),
+          fill:fd.fontColor||'#1a1714', textAlign:fd.align||'center',
+          fontWeight:fd.bold?'bold':'normal', fontStyle:fd.italic?'italic':'normal',
+          editable:false, angle:fd.angle||0
+        });
+        obj._cgMeta={fontSizeBase:fd.fontSize||36};
+      } else {
+        obj=makePlaceholderRect(fd.field, fd.type==='qr'?'◫ QR':'⊡ Photo', fd.type==='qr'?'#2b2b2b':'#3a4a6b');
+        obj.set({left:x,top:y,angle:fd.angle||0});
+        if(fd.boxWidth){ const t=fd.boxWidth*displayScale; obj.scaleX=obj.scaleY=t/obj.width; }
+      }
+      obj._cgId=id; obj._cgType=fd.type||'text'; obj._cgName=fd.field;
+      canvas.add(obj);
+      fields.push({id,name:fd.field,type:fd.type||'text',obj});
+    });
+    canvas.requestRenderAll(); updateFieldPill(); refreshMapping();
+    toast('Layout imported — '+fields.length+' fields');
+  };
+  r.readAsText(file);
+}
+
+/* ---------- Excel ---------- */
+function loadExcel(file){
+  const r=new FileReader();
+  r.onload=e=>{
+    try{
+      const wb=XLSX.read(e.target.result,{type:'array'});
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      const json=XLSX.utils.sheet_to_json(ws,{defval:''});
+      if(!json.length){ toast('Spreadsheet appears empty',true); return; }
+      excelRows=json;
+      excelCols=Object.keys(json[0]);
+      renderTable(); autoMap(); renderMapping();
+      $('dataSection').style.display='block';
+      $('rowPill').textContent=excelRows.length+' rows';
+      $('previewBtn').disabled=false; $('genBtn').disabled=false;
+      previewRowIndex=0; markActiveRow();
+      toast('Loaded '+excelRows.length+' rows');
+    }catch(err){ console.error(err); toast('Could not read spreadsheet',true); }
+  };
+  r.readAsArrayBuffer(file);
+}
+
+function renderTable(){
+  const max=Math.min(excelRows.length,200);
+  let h='<table><thead><tr><th>#</th>'+excelCols.map(c=>'<th>'+esc(c)+'</th>').join('')+'</tr></thead><tbody>';
+  for(let i=0;i<max;i++){
+    h+='<tr class="rowsel" data-i="'+i+'"><td style="color:var(--muted);font-family:Spline Sans Mono">'+(i+1)+'</td>'+excelCols.map(c=>'<td>'+esc(excelRows[i][c])+'</td>').join('')+'</tr>';
+  }
+  h+='</tbody></table>';
+  $('tableWrap').innerHTML=h;
+  $('tableWrap').querySelectorAll('.rowsel').forEach(tr=>{
+    tr.onclick=()=>{ previewRowIndex=+tr.dataset.i; markActiveRow(); if(previewOn) renderPreview(); };
+  });
+}
+function markActiveRow(){
+  $('tableWrap')&&$('tableWrap').querySelectorAll('.rowsel').forEach(tr=>tr.classList.toggle('active',+tr.dataset.i===previewRowIndex));
+}
+function esc(s){ return String(s==null?'':s).replace(/[&<>]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[m])); }
+
+function autoMap(){
+  mapping={};
+  fields.forEach(f=>{
+    // exact match, else case-insensitive, else fuzzy contains
+    let col=excelCols.find(c=>c===f.name)
+      || excelCols.find(c=>c.toLowerCase()===f.name.toLowerCase())
+      || excelCols.find(c=>c.toLowerCase().replace(/\s/g,'')===f.name.toLowerCase().replace(/\s/g,''));
+    if(col) mapping[f.name]=col;
+  });
+}
+function renderMapping(){
+  const box=$('mapping'); box.innerHTML='';
+  if(!fields.length){ box.innerHTML='<div class="hint">Add fields to the certificate to map them.</div>'; return; }
+  fields.forEach(f=>{
+    const row=document.createElement('div'); row.className='maprow';
+    const opts=['<option value="">— none —</option>'].concat(excelCols.map(c=>`<option value="${esc(c)}" ${mapping[f.name]===c?'selected':''}>${esc(c)}</option>`)).join('');
+    row.innerHTML=`<span class="col" title="{{${esc(f.name)}}}">{{${esc(f.name)}}}${f.type!=='text'?' ('+f.type+')':''}</span><span class="arrow">←</span><select data-f="${esc(f.name)}">${opts}</select>`;
+    row.querySelector('select').onchange=ev=>{ mapping[f.name]=ev.target.value; };
+    box.appendChild(row);
+  });
+}
+function refreshMapping(){ if(excelCols.length){ autoMap(); renderMapping(); } }
+
+/* ---------- Rendering values ---------- */
+// build a QR code data URL synchronously-ish via qrcodejs into a temp div
+function qrDataURL(text, sizePx){
+  return new Promise(resolve=>{
+    const tmp=document.createElement('div'); tmp.style.position='absolute'; tmp.style.left='-9999px';
+    document.body.appendChild(tmp);
+    new QRCode(tmp,{ text:String(text||' '), width:sizePx, height:sizePx, correctLevel:QRCode.CorrectLevel.M });
+    setTimeout(()=>{
+      const img=tmp.querySelector('img'), cv=tmp.querySelector('canvas');
+      let url = img&&img.src ? img.src : (cv?cv.toDataURL('image/png'):null);
+      document.body.removeChild(tmp); resolve(url);
+    },60);
+  });
+}
+function loadImg(url){ return new Promise(res=>{ const i=new Image(); i.crossOrigin='anonymous'; i.onload=()=>res(i); i.onerror=()=>res(null); i.src=url; }); }
+
+/* Render one row to a full-resolution PNG dataURL */
+async function renderRow(row){
+  const off=new fabric.StaticCanvas(null,{width:baseW,height:baseH});
+  // background
+  await new Promise(r=>{ const bg=new fabric.Image(tplImage.getElement(),{left:0,top:0,originX:'left',originY:'top',scaleX:baseW/tplImage.getElement().width,scaleY:baseH/tplImage.getElement().height}); off.add(bg); r(); });
+
+  for(const f of fields){
+    const o=f.obj; const c=o.getCenterPoint();
+    const X=c.x/displayScale, Y=c.y/displayScale;
+    const col=mapping[f.name];
+    let val = col!==undefined && col!=='' ? row[col] : '';
+    if(val===undefined||val===null) val='';
+
+    if(f.type==='text'){
+      const fs=(o._cgMeta?o._cgMeta.fontSizeBase:Math.round(o.fontSize/displayScale));
+      const t=new fabric.Text(String(val)||'', {
+        left:X, top:Y, originX:'center', originY:'center',
+        fontFamily:o.fontFamily, fontSize:fs, fill:o.fill,
+        textAlign:o.textAlign, fontWeight:o.fontWeight, fontStyle:o.fontStyle,
+        angle:o.angle||0
+      });
+      off.add(t);
+    } else if(f.type==='qr'){
+      const boxW=Math.round((o.width*o.scaleX)/displayScale);
+      const url=await qrDataURL(val, Math.max(80,boxW*2));
+      if(url){ const im=await loadImg(url); if(im){ const fi=new fabric.Image(im,{left:X,top:Y,originX:'center',originY:'center',angle:o.angle||0}); fi.scaleToWidth(boxW); off.add(fi);} }
+    } else if(f.type==='photo'){
+      const boxW=Math.round((o.width*o.scaleX)/displayScale);
+      if(String(val).trim()){ const im=await loadImg(String(val).trim()); if(im){ const fi=new fabric.Image(im,{left:X,top:Y,originX:'center',originY:'center',angle:o.angle||0}); fi.scaleToWidth(boxW); off.add(fi);} }
+    }
+  }
+  off.renderAll();
+  const url=off.toDataURL({format:'png',quality:1});
+  off.dispose();
+  return url;
+}
+
+/* ---------- Preview (overlay actual values on live canvas) ---------- */
+let previewObjs=[];
+async function renderPreview(){
+  clearPreview();
+  if(!excelRows.length){ toast('Upload data first',true); return; }
+  const row=excelRows[previewRowIndex];
+  fields.forEach(f=>f.obj.set('opacity',0));
+  for(const f of fields){
+    const o=f.obj; const c=o.getCenterPoint();
+    const col=mapping[f.name]; let val=col?row[col]:''; if(val==null)val='';
+    if(f.type==='text'){
+      const t=new fabric.Text(String(val)||'{{'+f.name+'}}',{
+        left:c.x,top:c.y,originX:'center',originY:'center',
+        fontFamily:o.fontFamily,fontSize:o.fontSize,fill:o.fill,
+        textAlign:o.textAlign,fontWeight:o.fontWeight,fontStyle:o.fontStyle,
+        angle:o.angle||0,selectable:false,evented:false
+      });
+      t._cgPrev=true; canvas.add(t); previewObjs.push(t);
+    } else if(f.type==='qr'){
+      const boxW=o.width*o.scaleX;
+      const url=await qrDataURL(val, Math.max(80,Math.round(boxW*2)));
+      if(url){ const im=await loadImg(url); if(im){ const fi=new fabric.Image(im,{left:c.x,top:c.y,originX:'center',originY:'center',angle:o.angle||0,selectable:false,evented:false}); fi.scaleToWidth(boxW); fi._cgPrev=true; canvas.add(fi); previewObjs.push(fi);} }
+    } else {
+      const boxW=o.width*o.scaleX;
+      if(String(val).trim()){ const im=await loadImg(String(val).trim()); if(im){ const fi=new fabric.Image(im,{left:c.x,top:c.y,originX:'center',originY:'center',angle:o.angle||0,selectable:false,evented:false}); fi.scaleToWidth(boxW); fi._cgPrev=true; canvas.add(fi); previewObjs.push(fi);} } }
+  }
+  canvas.requestRenderAll();
+  previewOn=true; $('previewPill').textContent='preview: row '+(previewRowIndex+1);
+}
+function clearPreview(){
+  previewObjs.forEach(o=>canvas.remove(o)); previewObjs=[];
+  fields.forEach(f=>f.obj.set('opacity',1));
+  canvas&&canvas.requestRenderAll();
+}
+function togglePreview(){
+  if(previewOn){ clearPreview(); previewOn=false; $('previewPill').textContent='preview off'; }
+  else renderPreview();
+}
+
+/* ---------- Generate ---------- */
+async function generateAll(){
+  if(!fields.length){ toast('Add at least one field',true); return; }
+  if(!excelRows.length){ toast('Upload spreadsheet data',true); return; }
+  if(previewOn){ clearPreview(); previewOn=false; $('previewPill').textContent='preview off'; }
+  generated=[];
+  const prog=$('prog'), bar=$('progBar'), txt=$('progTxt');
+  prog.classList.add('show'); $('genBtn').disabled=true; $('zipBtn').disabled=true;
+  // figure out naming column: mapping for 'Name' else first mapped text else index
+  const nameField = fields.find(f=>/name/i.test(f.name)) || fields.find(f=>f.type==='text');
+  const nameCol = nameField? mapping[nameField.name] : null;
+  const used={};
+  for(let i=0;i<excelRows.length;i++){
+    const row=excelRows[i];
+    const url=await renderRow(row);
+    let nm = nameCol && row[nameCol]!=='' ? safeName(row[nameCol]) : 'certificate_'+(i+1);
+    if(used[nm]!=null){ used[nm]++; nm=nm+'_'+used[nm]; } else { used[nm]=0; }
+    generated.push({name:nm+'.png', dataURL:url});
+    const pct=Math.round(((i+1)/excelRows.length)*100);
+    bar.style.width=pct+'%'; txt.textContent='Rendering '+(i+1)+' of '+excelRows.length+' …';
+    await new Promise(r=>setTimeout(r,0));
+  }
+  txt.textContent='Done — '+generated.length+' certificates ready.';
+  $('genBtn').disabled=false; $('zipBtn').disabled=false;
+  toast(generated.length+' certificates generated');
+}
+
+async function downloadZip(){
+  if(!generated.length){ toast('Generate certificates first',true); return; }
+  const prog=$('prog'),bar=$('progBar'),txt=$('progTxt');
+  prog.classList.add('show'); txt.textContent='Packaging ZIP…'; bar.style.width='30%';
+  const zip=new JSZip(); const folder=zip.folder('Certificates');
+  generated.forEach(g=>{ folder.file(g.name, g.dataURL.split(',')[1], {base64:true}); });
+  bar.style.width='70%';
+  const blob=await zip.generateAsync({type:'blob'},meta=>{ bar.style.width=(70+meta.percent*0.3)+'%'; });
+  saveAs(blob,'Certificates.zip');
+  bar.style.width='100%'; txt.textContent='ZIP downloaded.';
+  toast('Certificates.zip downloaded');
+}
+
+/* ---------- Wire up ---------- */
+setupDrop($('tplDrop'),$('tplInput'),loadTemplate);
+setupDrop($('xlsxDrop'),$('xlsxInput'),loadExcel);
+
+$('addFieldBtn').onclick=()=>{ buildChips(); openModal(); };
+$('modalCancel').onclick=closeModal;
+$('modalBg').addEventListener('click',e=>{ if(e.target===$('modalBg')) closeModal(); });
+$('modalAdd').onclick=()=>{ addField($('fieldNameInput').value,$('fieldTypeInput').value); closeModal(); };
+$('fieldNameInput').addEventListener('keydown',e=>{ if(e.key==='Enter'){ $('modalAdd').click(); } });
+
+$('exportLayout').onclick=exportExcelTemplate;
+
+// Layout JSON: save current design / load a saved one
+$('layoutExportLink').onclick=e=>{ e.preventDefault(); exportLayout(); };
+$('layoutImportLink').onclick=e=>{ e.preventDefault(); $('importLayout').click(); };
+$('importLayout').addEventListener('change',function(){ if(this.files.length) importLayout(this.files[0]); this.value=''; });
+
+$('previewBtn').onclick=togglePreview;
+$('genBtn').onclick=generateAll;
+$('zipBtn').onclick=downloadZip;
+
+toast('Welcome — start by uploading a template');
+})();
+</script>
+</body>
+</html>
